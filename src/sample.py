@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-import model
+from . import model
 
 def top_k_logits(logits, k):
     if k == 0:
@@ -39,8 +39,24 @@ def top_p_logits(logits, p):
         logits,
     )
 
+# BCD 2020/07/05
+def restricted_logits(logits, allowed_tokens):
+    """
+    Restrict chosen tokens to those for which allowed_tokens > 0
+    """
+    if allowed_tokens == None:
+        # no restriction
+        return logits
 
-def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=1):
+    print("sample.restricted_logits: BCD DEBUG len(allowed_tokens) = {}".format(len(allowed_tokens)))
+
+    return tf.where(
+        allowed_tokens == 0.,
+        tf.ones_like(logits) * -1e10,
+        logits,
+    )
+
+def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=1, allowed_tokens=None):
     if start_token is None:
         assert context is not None, 'Specify exactly one of start_token and context!'
     else:
@@ -64,6 +80,7 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
             logits = next_outputs['logits'][:, -1, :]  / tf.to_float(temperature)
             logits = top_k_logits(logits, k=top_k)
             logits = top_p_logits(logits, p=top_p)
+            logits = restricted_logits(logits, allowed_tokens=allowed_tokens)
             samples = tf.multinomial(logits, num_samples=1, output_dtype=tf.int32)
             return [
                 next_outputs['presents'] if past is None else tf.concat([past, next_outputs['presents']], axis=-2),

@@ -6,7 +6,7 @@ import os
 import numpy as np
 import tensorflow as tf
 
-import model, sample, encoder
+from . import model, sample, encoder
 
 def interact_model(
     model_name='124M',
@@ -18,6 +18,7 @@ def interact_model(
     top_k=0,
     top_p=1,
     models_dir='models',
+    allowed=None,
 ):
     """
     Interactively run the model
@@ -56,6 +57,7 @@ def interact_model(
 
     with tf.Session(graph=tf.Graph()) as sess:
         context = tf.placeholder(tf.int32, [batch_size, None])
+        allowed_tokens = tf.placeholder(tf.int32, [batch_size, None])
         np.random.seed(seed)
         tf.set_random_seed(seed)
         output = sample.sample_sequence(
@@ -78,7 +80,8 @@ def interact_model(
             generated = 0
             for _ in range(nsamples // batch_size):
                 out = sess.run(output, feed_dict={
-                    context: [context_tokens for _ in range(batch_size)]
+                    context: [context_tokens for _ in range(batch_size)],
+                    allowed_tokens: [allowed for _ in range(batch_size)]
                 })[:, len(context_tokens):]
                 for i in range(batch_size):
                     generated += 1
