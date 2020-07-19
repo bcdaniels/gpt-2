@@ -48,10 +48,8 @@ def restricted_logits(logits, allowed_tokens):
         # no restriction
         return logits
 
-    print("sample.restricted_logits: BCD DEBUG len(allowed_tokens) = {}".format(len(allowed_tokens)))
-
     return tf.where(
-        allowed_tokens == 0.,
+        allowed_tokens < 1,
         tf.ones_like(logits) * -1e10,
         logits,
     )
