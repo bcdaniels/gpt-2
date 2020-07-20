@@ -89,6 +89,10 @@ def interact_model(
                     text = enc.decode(out[i])
                     print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
                     print(text)
+                    # BCD 2020.07.19
+                    for token in out[i]:
+                        print("[{}] : {}".format(token,enc.decode([token])))
+                    # end BCD
             print("=" * 80)
 
 if __name__ == '__main__':
