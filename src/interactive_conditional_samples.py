@@ -18,7 +18,8 @@ def interact_model(
     top_k=0,
     top_p=1,
     models_dir='models',
-    allowed=None,
+    allowed_list=None,
+    word_start=None,
 ):
     """
     Interactively run the model
@@ -57,7 +58,8 @@ def interact_model(
 
     with tf.Session(graph=tf.Graph()) as sess:
         context = tf.placeholder(tf.int32, [batch_size, None])
-        allowed_tokens = tf.placeholder(tf.int32, [batch_size, None])
+        allowed_tokens_list = tf.placeholder(tf.int32, [batch_size, None, None])
+        word_start_tokens = tf.placeholder(tf.int32, [batch_size, None])
         np.random.seed(seed)
         tf.set_random_seed(seed)
         output = sample.sample_sequence(
@@ -65,7 +67,8 @@ def interact_model(
             context=context,
             batch_size=batch_size,
             temperature=temperature, top_k=top_k, top_p=top_p,
-            allowed_tokens=allowed_tokens
+            allowed_tokens_list=allowed_tokens_list,
+            word_start_tokens=word_start_tokens,
         )
 
         saver = tf.train.Saver()
@@ -82,7 +85,8 @@ def interact_model(
             for _ in range(nsamples // batch_size):
                 out = sess.run(output, feed_dict={
                     context: [context_tokens for _ in range(batch_size)],
-                    allowed_tokens: [allowed for _ in range(batch_size)]
+                    allowed_tokens_list: [allowed_list for _ in range(batch_size)],
+                    word_start_tokens: [word_start for _ in range(batch_size)],
                 })[:, len(context_tokens):]
                 for i in range(batch_size):
                     generated += 1
