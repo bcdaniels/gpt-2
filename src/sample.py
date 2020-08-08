@@ -55,7 +55,7 @@ def restricted_logits(logits, allowed_tokens):
     )
 
 def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=1, allowed_tokens_list=None, word_start_tokens=None,
-    reweight=None):
+    word_start_tokens_dense=None, word_end_tokens=None, reweight=None):
     if start_token is None:
         assert context is not None, 'Specify exactly one of start_token and context!'
     else:
@@ -81,7 +81,16 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
                 return 0
             else:
                 return tf.size(tf.sets.intersection(tokens,word_start_tokens))
-        
+                
+        # BCD 2020/08/08
+        def last_is_end_token(tokens, word_end_tokens):
+            """
+            Returns 1 if final token is in "word_end_tokens', 0 otherwise.
+            """
+            return tf.dtypes.cast(
+                tf.size(tf.sets.intersection(tokens[:,-1:],word_end_tokens[:])) > 0,
+                tf.float32)
+                        
         def body(past, prev, output):
             next_outputs = step(hparams, prev, past=past)
             logits = next_outputs['logits'][:, -1, :]  / tf.to_float(temperature)
@@ -90,11 +99,16 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
             
             # BCD stuff
             num_prev_words = count_words(output,word_start_tokens)
-            idx = num_prev_words % tf.shape(allowed_tokens_list)[1] #[0]
+            idx = num_prev_words % tf.shape(allowed_tokens_list)[1]
             logits = restricted_logits(logits,
                         allowed_tokens=allowed_tokens_list[:,idx])
+            # further restrict by requiring token after a "word_end"
+            # token to be a "word_start" token (does nothing if
+            # last_is_end_token is false)
+            r = -1e10*last_is_end_token(output,word_end_tokens)*(1.-tf.dtypes.cast(word_start_tokens_dense,tf.float32))
+            # and allow for final arbitrary reweighting
             if reweight is not None:
-                logits = logits + reweight
+                logits = logits + reweight + r
             
             samples = tf.multinomial(logits, num_samples=1, output_dtype=tf.int32)
             return [
