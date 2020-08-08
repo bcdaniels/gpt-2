@@ -54,7 +54,8 @@ def restricted_logits(logits, allowed_tokens):
         logits,
     )
 
-def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=1, allowed_tokens_list=None, word_start_tokens=None):
+def sample_sequence(*, hparams, length, start_token=None, batch_size=None, context=None, temperature=1, top_k=0, top_p=1, allowed_tokens_list=None, word_start_tokens=None,
+    reweight=None):
     if start_token is None:
         assert context is not None, 'Specify exactly one of start_token and context!'
     else:
@@ -92,6 +93,8 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
             idx = num_prev_words % tf.shape(allowed_tokens_list)[1] #[0]
             logits = restricted_logits(logits,
                         allowed_tokens=allowed_tokens_list[:,idx])
+            if reweight is not None:
+                logits = logits + reweight
             
             samples = tf.multinomial(logits, num_samples=1, output_dtype=tf.int32)
             return [
